@@ -12,6 +12,8 @@
 #include "Wire.h"
 #include <EEPROM.h>
 
+//////////// Variables definitions ////////////
+
 //Arduinos IO initialization
 #define pinY    A0
 #define pinX    A1
@@ -216,9 +218,15 @@ static unsigned char splash[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
+//////////// Game logics ////////////
 
 //Initialization of the display using U8G2 library
 U8G2_SH1107_SEEED_128X128_F_SW_I2C display(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);
+
+
+//Function that reset the arduino and restart the game from software
+void(* resetFunc) (void) = 0;
+
 
 //Function that generates the maze using the Kruskal's algorithm and storing it in the mazeFrame array variable
 void mazeGenerator() {
@@ -235,10 +243,6 @@ void mazeGenerator() {
       }
     }
   }
-
-
-
-
 
   //Generating the maze hallways by destroying random walls following Kruskal's algorithm rules
   for (int Advancement = 0; Advancement < 280;) { //280
@@ -289,6 +293,8 @@ void mazeGenerator() {
   mazeFrame[30][31] = 1;
   mazeFrame[31][30] = 1;
 }
+
+//////////// Screen controll functions ////////////
 
 //Function that draws a splash screen using the splash XBM array and U8G2 library
 void splashScreen() {
@@ -365,9 +371,6 @@ void winnerScreen() {
   }
 }
 
-//Function that reset the arduino and restart the game from software
-void(* resetFunc) (void) = 0;
-
 //Function that show the game and the 5 surrounding cells according to the player's position
 void gameScreen(int PlayerPosI, int PlayerPosJ) {
   //Using the U8G2 to display the gamescreen, we found it 10% better than using full buffer one.
@@ -393,6 +396,8 @@ void gameScreen(int PlayerPosI, int PlayerPosJ) {
   } while ( display.nextPage() );
 }
 
+
+//////////// Game control functions ////////////
 
 //Arduino's Setup function
 void setup() {
@@ -491,6 +496,8 @@ void playerMouvement(int playerInput) {
   }
 }
 
+//////////// Conditional funtions ////////////
+
 //Function that checks if a cell is a wall and returns true or false
 bool isItAWall(int tempPlayerPosI, int tempPlayerPosJ) {
   if (mazeFrame[tempPlayerPosI][tempPlayerPosJ] == 0) {
@@ -508,6 +515,8 @@ bool isItAWin(int tempPlayerPosI, int tempPlayerPosJ) {
     return false; //not a winning cell
   }
 }
+
+//////////// Game input drivers ////////////
 
 //Function that works as input driver for the game returning int as directions 1: right, 2: left, 3: down, 4: up , 0: not moving
 int InputDirections() {
