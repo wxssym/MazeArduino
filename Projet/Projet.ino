@@ -37,6 +37,7 @@ int BestPlayerScore = EEPROM.read(10);
 //Maze frame and it's size
 unsigned int mazeFrame[33][33];
 unsigned int sizeOfmazeFrame = sizeof(mazeFrame) / sizeof(mazeFrame[0]);
+unsigned int AdvancementMax = 520;
 
 //Conditions to avoid drawing the same progress bar / Performance fix
 bool at25 = false;
@@ -245,7 +246,7 @@ void mazeGenerator() {
   }
 
   //Generating the maze hallways by destroying random walls following Kruskal's algorithm rules
-  for (int Advancement = 0; Advancement < 280;) { //280
+  for (int Advancement = 0; Advancement < AdvancementMax;) { //280
     int x = random(1, sizeOfmazeFrame - 1);
     int y = random(1, sizeOfmazeFrame - 1);
     if (x % 2 == 0 && y % 2 == 0) {
@@ -255,43 +256,52 @@ void mazeGenerator() {
       if (mazeFrame[x][y] == 0) {
         //picking a random dirrection to merge the cells 0 is vertical, 1 is horizontal
         if (random(0, 2) == 0) { //Vertical direction
-          if (mazeFrame[x][y + 1] != mazeFrame[x][y - 1] && mazeFrame[x][y + 1] != 0 && mazeFrame[x][y - 1] != 0  ) {
-            mazeFrame[x][y] = mazeFrame[x][y - 1];
-            Advancement++; //Incrementing the advancement
-            for (int  i = 0; i < sizeOfmazeFrame; i++) {
-              for (int  j = 0; j < sizeOfmazeFrame; j++) {
-                if ( mazeFrame[i][j] == mazeFrame[x][y + 1]) {
-                  mazeFrame[i][j] = mazeFrame[x][y - 1];
-                }
-              }
-            }
-          }
+          breakVerWall(x,y); //breaks vertical wall
+          Advancement++; //Incrementing the advancement
         } else { //Horizontal direction
-          if (mazeFrame[x + 1][y] != mazeFrame[x - 1][y] && mazeFrame[x + 1][y ] != 0 && mazeFrame[x - 1][y] != 0 ) {
-            mazeFrame[x][y] = mazeFrame[x - 1][y];
-            Advancement++; //Incrementing the advancement
-            for (int  i = 0; i < sizeOfmazeFrame - 1; i++) {
-              for (int  j = 0; j < sizeOfmazeFrame - 1; j++) {
-                if ( mazeFrame[i][j] == mazeFrame[x + 1][y]) {
-                  mazeFrame[i][j] = mazeFrame[x - 1][y];
-                }
-              }
-            }
-          }
+          breakHorWall(x,y); //breaks horizontal wall
+          Advancement++; //Incrementing the advancement
         }
       }
     }
-    float AdvancementPourcentage = (float(Advancement) / 280.0 ) * 100.0; //calculating the advancement pourcetage
+    float AdvancementPourcentage = (float(Advancement) / float(AdvancementMax) ) * 100.0; //calculating the advancement pourcetage
     loadingScreenUpdater(AdvancementPourcentage); //updating the loadingScreen with the new advancement
   }
 
   //Forcing the start cells to have empty adjacent cells to avoid any blocking start
   mazeFrame[1][2] = 1;
   mazeFrame[2][1] = 1;
-
   //Forcing the end cells to have empty adjacent cells to avoid any blocking end
   mazeFrame[30][31] = 1;
   mazeFrame[31][30] = 1;
+}
+
+//function that break walls vertically
+void breakVerWall(int x, int y) {
+  if (mazeFrame[x][y + 1] != mazeFrame[x][y - 1] && mazeFrame[x][y + 1] != 0 && mazeFrame[x][y - 1] != 0  ) {
+    mazeFrame[x][y] = mazeFrame[x][y - 1];
+    for (int  i = 0; i < sizeOfmazeFrame; i++) {
+      for (int  j = 0; j < sizeOfmazeFrame; j++) {
+        if ( mazeFrame[i][j] == mazeFrame[x][y + 1]) {
+          mazeFrame[i][j] = mazeFrame[x][y - 1];
+        }
+      }
+    }
+  }
+}
+
+//function that break walls horizontally
+void breakHorWall(int x, int y) {
+  if (mazeFrame[x + 1][y] != mazeFrame[x - 1][y] && mazeFrame[x + 1][y ] != 0 && mazeFrame[x - 1][y] != 0 ) {
+    mazeFrame[x][y] = mazeFrame[x - 1][y];
+    for (int  i = 0; i < sizeOfmazeFrame - 1; i++) {
+      for (int  j = 0; j < sizeOfmazeFrame - 1; j++) {
+        if ( mazeFrame[i][j] == mazeFrame[x + 1][y]) {
+          mazeFrame[i][j] = mazeFrame[x - 1][y];
+        }
+      }
+    }
+  }
 }
 
 //////////// Screen controll functions ////////////
@@ -354,21 +364,25 @@ void winnerScreen() {
   //Showing the game session score
   String Score = "your score : " + String(PlayerScore);
   display.drawStr(22, 62, Score.c_str() );
-
-  //Showing the best game score
-  String bestScore = "best score : " + String(BestPlayerScore);
-  display.drawStr(22, 72, bestScore.c_str() );
-  display.setFont(u8g2_font_6x13_tr);
-
+  //Writing the new high score if the current one is smaller than the previous
+  if (PlayerScore < BestPlayerScore) {
+    EEPROM.write(10, PlayerScore);
+    String bestScore = "You score a new best score !";
+    display.drawStr(22, 72, bestScore.c_str() );
+    display.setFont(u8g2_font_6x13_tr);
+  } else {
+    //Showing the best game score
+    String bestScore = "best score : " + String(BestPlayerScore);
+    display.drawStr(22, 72, bestScore.c_str() );
+    display.setFont(u8g2_font_6x13_tr);
+  }
+  
   //Showing IO inputs to play or reset score
   display.drawStr(8, 100, "play again ? down");
   display.drawStr(8, 115, "clear score ? up");
   display.sendBuffer();
 
-  //Writing the new high score if the current one is smaller than the previous
-  if (PlayerScore < BestPlayerScore) {
-    EEPROM.write(10, PlayerScore);
-  }
+
 }
 
 //Function that show the game and the 5 surrounding cells according to the player's position
@@ -500,20 +514,12 @@ void playerMouvement(int playerInput) {
 
 //Function that checks if a cell is a wall and returns true or false
 bool isItAWall(int tempPlayerPosI, int tempPlayerPosJ) {
-  if (mazeFrame[tempPlayerPosI][tempPlayerPosJ] == 0) {
-    return true; //it's a wall
-  } else {
-    return false; //it's not a wall
-  }
+  return (mazeFrame[tempPlayerPosI][tempPlayerPosJ] == 0);
 }
 
 //Function that checks if the player is in win cell and returns true or false
 bool isItAWin(int tempPlayerPosI, int tempPlayerPosJ) {
-  if (tempPlayerPosI == winningCaseX && tempPlayerPosJ == winningCaseY) {
-    return true; //winning cell
-  } else {
-    return false; //not a winning cell
-  }
+  return (tempPlayerPosI == winningCaseX && tempPlayerPosJ == winningCaseY);
 }
 
 //////////// Game input drivers ////////////
@@ -522,13 +528,12 @@ bool isItAWin(int tempPlayerPosI, int tempPlayerPosJ) {
 int InputDirections() {
   int direction = 0;
   if (analogRead(pinX) >= 512 + sensibilite) {
-    direction = 1;
+    return 1;
   } else if (analogRead(pinX) <= 512 - sensibilite) {
-    direction = 2;
+    return 2;
   } else if (analogRead(pinY) >= 512 + sensibilite) {
-    direction = 3;
+    return 3;
   } else if (analogRead(pinY) <= 512 - sensibilite) {
-    direction = 4;
+    return 4;
   }
-  return direction;
 };
